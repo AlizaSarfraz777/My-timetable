@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0f111a" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Command Center</title>
+  <style>
+    :root {
+      --bg: #0f111a;
+      --card-bg: #181b26;
+      --accent: #d90429;
+      --text: #edf2f4;
+      --text-muted: #8d99ae;
+      --border: #2b2d42;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      padding: 20px 16px;
+      line-height: 1.5;
+      user-select: none;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+    }
+
+    h1 {
+      font-size: 1.3rem;
+      font-weight: 700;
+    }
+
+    .badge {
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.7rem;
+      padding: 3px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      font-weight: bold;
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      margin-bottom: 12px;
+      border-left: 3px solid var(--accent);
+      padding-left: 8px;
+    }
+
+    .task-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      font-size: 0.95rem;
+    }
+
+    .task-item input[type="checkbox"] {
+      accent-color: var(--accent);
+      width: 18px;
+      height: 18px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 120px;
+      background: #11131c;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 10px;
+      font-size: 0.9rem;
+      resize: none;
+    }
+
+    textarea:focus {
+      outline: 1px solid var(--accent);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div>
+      <h1>Command Center</h1>
+      <p style="color: var(--text-muted); font-size: 0.8rem;">Offline Ready</p>
+    </div>
+    <span class="badge" id="net-status">Online</span>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Academic & Tasks</h2>
+      <div class="task-item">
+        <input type="checkbox" id="t1" />
+        <label for="t1">CS / Programming Practice</label>
+      </div>
+      <div class="task-item">
+        <input type="checkbox" id="t2" />
+        <label for="t2">Algorithms & Problem Sets</label>
+      </div>
+      <div class="task-item">
+        <input type="checkbox" id="t3" />
+        <label for="t3">Lecture Notes Review</label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Quick Offline Scratchpad</h2>
+      <textarea id="notes" placeholder="Notes auto-save straight to your phone storage..."></textarea>
+    </section>
+  </main>
+
+  <script>
+    // 1. Auto-save Notes locally
+    const notes = document.getElementById('notes');
+    notes.value = localStorage.getItem('app_notes') || '';
+    notes.addEventListener('input', (e) => {
+      localStorage.setItem('app_notes', e.target.value);
+    });
+
+    // 2. Auto-save Checkbox states locally
+    ['t1', 't2', 't3'].forEach(id => {
+      const el = document.getElementById(id);
+      el.checked = localStorage.getItem(id) === 'true';
+      el.addEventListener('change', () => {
+        localStorage.setItem(id, el.checked);
+      });
+    });
+
+    // 3. Network status indicator
+    const statusBadge = document.getElementById('net-status');
+    function updateOnlineStatus() {
+      if (navigator.onLine) {
+        statusBadge.textContent = "Online";
+        statusBadge.style.background = "#2b2d42";
+      } else {
+        statusBadge.textContent = "Offline";
+        statusBadge.style.background = "#d90429";
+      }
+    }
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    updateOnlineStatus();
+
+    // 4. Register inline Service Worker for 100% offline page reloads
+    if ('serviceWorker' in navigator) {
+      const swCode = `
+        const CACHE_NAME = 'offline-hub-v1';
+        self.addEventListener('install', (e) => {
+          e.waitUntil(
+            caches.open(CACHE_NAME).then((cache) => cache.addAll(['./']))
+          );
+        });
+        self.addEventListener('fetch', (e) => {
+          e.respondWith(
+            caches.match(e.request).then((res) => res || fetch(e.request))
+          );
+        });
+      `;
+      const blob = new Blob([swCode], { type: 'application/javascript' });
+      navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {
+        // Fallback for strict sandbox environments
+      });
+    }
+  </script>
+</body>
+</html>
